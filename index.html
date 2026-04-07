@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>运动链康复课表 · Vincent</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;600;700;800&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0a0a; --surface:#111; --surface2:#181818; --border:#232323;
+    --accent:#c8f55a; --text:#e8e8e8; --muted:#555; --warning:#f5a623;
+    --phase1:#c8f55a; --phase2:#4ecdc4; --phase3:#ff6b35; --phase4:#a78bfa;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'Noto Sans SC',sans-serif;font-weight:300;line-height:1.6;min-height:100vh;}
+
+  /* HEADER */
+  .header{padding:2.5rem 2rem 1.75rem;border-bottom:1px solid var(--border);position:relative;overflow:hidden;}
+  .header::before{content:'';position:absolute;top:-60px;right:-60px;width:300px;height:300px;background:radial-gradient(circle,rgba(200,245,90,.08) 0%,transparent 70%);pointer-events:none;}
+  .header-tag{font-family:'DM Mono',monospace;font-size:.68rem;color:var(--accent);letter-spacing:.2em;text-transform:uppercase;margin-bottom:.6rem;display:flex;align-items:center;gap:.5rem;}
+  .header-tag::before{content:'';display:inline-block;width:6px;height:6px;background:var(--accent);border-radius:50%;animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .header h1{font-family:'Syne',sans-serif;font-size:clamp(1.6rem,4vw,2.5rem);font-weight:800;line-height:1.1;letter-spacing:-.02em;}
+  .header h1 span{color:var(--accent);}
+  .header-sub{font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted);margin-top:.6rem;}
+
+  /* STATS BAR */
+  .stats-bar{display:flex;gap:2rem;padding:1rem 2rem;border-bottom:1px solid var(--border);background:var(--surface);flex-wrap:wrap;align-items:center;}
+  .stat-item{display:flex;flex-direction:column;gap:.12rem;}
+  .stat-label{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;}
+  .stat-value{font-family:'DM Mono',monospace;font-size:.9rem;color:var(--accent);font-weight:500;}
+  .reset-btn{margin-left:auto;background:none;border:1px solid #2a2a2a;color:var(--muted);font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;padding:.32rem .7rem;border-radius:2px;cursor:pointer;transition:all .2s;}
+  .reset-btn:hover{border-color:#444;color:var(--text);}
+
+  /* WARNING */
+  .warning-banner{margin:1.25rem 2rem;padding:.85rem 1.1rem;border:1px solid rgba(245,166,35,.25);border-left:3px solid var(--warning);background:rgba(245,166,35,.04);border-radius:2px;font-size:.76rem;color:#b8954a;font-family:'DM Mono',monospace;}
+  .warning-banner strong{color:var(--warning);}
+
+  /* PHASE NAV */
+  .phase-nav{display:flex;padding:0 2rem;margin-top:1.25rem;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;}
+  .phase-nav::-webkit-scrollbar{display:none;}
+  .phase-btn{background:none;border:none;border-bottom:2px solid transparent;padding:.7rem 1.1rem;cursor:pointer;color:var(--muted);font-family:'DM Mono',monospace;font-size:.67rem;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;transition:all .2s;position:relative;top:1px;}
+  .phase-btn:hover{color:var(--text);}
+  .phase-btn.active{color:var(--text);}
+  .phase-btn[data-phase="1"].active{border-color:var(--phase1);color:var(--phase1);}
+  .phase-btn[data-phase="2"].active{border-color:var(--phase2);color:var(--phase2);}
+  .phase-btn[data-phase="3"].active{border-color:var(--phase3);color:var(--phase3);}
+  .phase-btn[data-phase="4"].active{border-color:var(--phase4);color:var(--phase4);}
+  .phase-btn[data-phase="5"].active{border-color:#444;color:var(--text);}
+
+  /* CONTENT */
+  .content{padding:1.75rem 2rem;max-width:980px;}
+  .phase-panel{display:none;}
+  .phase-panel.active{display:block;animation:fadeIn .25s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+  /* PHASE HEADER */
+  .phase-header{display:grid;grid-template-columns:auto 1fr;gap:1.25rem;align-items:start;margin-bottom:1.75rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border);}
+  .phase-big-num{font-family:'Syne',sans-serif;font-size:4rem;font-weight:800;line-height:1;opacity:.18;}
+  .phase-title{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:700;margin-bottom:.25rem;}
+  .phase-meta{font-family:'DM Mono',monospace;font-size:.67rem;color:var(--muted);display:flex;gap:1.25rem;flex-wrap:wrap;margin-bottom:.4rem;}
+  .phase-goal{font-size:.82rem;color:#999;max-width:580px;}
+  .phase-goal strong{color:var(--text);font-weight:500;}
+
+  /* WEEK GRID */
+  .week-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:.85rem;margin-bottom:1.5rem;}
+
+  /* DAY CARD */
+  .day-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow:hidden;transition:border-color .2s;}
+  .day-card.expanded{border-color:#2d2d2d;}
+
+  .day-header{padding:.85rem 1rem;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;border-bottom:1px solid transparent;transition:border-color .2s;gap:.5rem;}
+  .day-card.expanded .day-header{border-color:var(--border);}
+  .day-header-left{display:flex;flex-direction:column;gap:.22rem;flex:1;min-width:0;}
+  .day-label{font-family:'Syne',sans-serif;font-size:.82rem;font-weight:700;letter-spacing:.04em;}
+
+  /* progress bar inside card */
+  .card-prog-row{display:flex;align-items:center;gap:.4rem;}
+  .card-prog-bar{flex:1;height:2px;background:#1e1e1e;border-radius:1px;overflow:hidden;max-width:70px;}
+  .card-prog-fill{height:100%;border-radius:1px;transition:width .35s ease;background:var(--accent);}
+  .card-prog-txt{font-family:'DM Mono',monospace;font-size:.57rem;color:var(--muted);white-space:nowrap;}
+
+  .day-type{font-family:'DM Mono',monospace;font-size:.59rem;padding:.17rem .42rem;border-radius:2px;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;flex-shrink:0;}
+  .type-rehab{background:rgba(200,245,90,.1);color:var(--phase1);}
+  .type-strength{background:rgba(255,107,53,.1);color:var(--phase3);}
+  .type-neuro{background:rgba(78,205,196,.1);color:var(--phase2);}
+  .type-rest{background:rgba(100,100,100,.1);color:var(--muted);}
+  .type-full{background:rgba(167,139,250,.1);color:var(--phase4);}
+
+  .expand-hint{font-family:'DM Mono',monospace;font-size:.59rem;color:var(--muted);text-align:center;padding:.38rem;letter-spacing:.08em;}
+  .day-body{display:none;padding:.6rem 1rem 1rem;}
+  .day-card.expanded .day-body{display:block;}
+
+  /* SECTION LABEL */
+  .sl{font-family:'DM Mono',monospace;font-size:.57rem;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;margin:.8rem 0 .3rem;}
+  .sl:first-child{margin-top:.1rem;}
+
+  /* EXERCISE ROW — checkable */
+  .ex-list{list-style:none;}
+  .ex-item{
+    display:grid;
+    grid-template-columns:18px 1fr auto;
+    grid-template-rows:auto auto;
+    column-gap:.55rem;
+    padding:.52rem 0;
+    border-bottom:1px solid var(--border);
+    align-items:start;
+    cursor:pointer;
+    transition:opacity .2s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .ex-item:last-child{border-bottom:none;}
+  .ex-item.ck{opacity:.38;}
+  .ex-item.ck .ex-name{text-decoration:line-through;text-decoration-color:#3a3a3a;}
+  .ex-item.ck .ex-sets{color:#383838;}
+
+  /* the checkbox */
+  .cb{
+    width:16px;height:16px;border:1.5px solid #2e2e2e;border-radius:3px;
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;margin-top:2px;transition:all .15s;
+    grid-column:1;grid-row:1;
+  }
+  .cb svg{display:none;width:9px;height:9px;}
+  .ex-item.ck .cb{background:var(--phase1);border-color:var(--phase1);}
+  .ex-item.ck .cb svg{display:block;}
+
+  .ex-name{font-size:.8rem;font-weight:400;color:var(--text);grid-column:2;grid-row:1;}
+  .ex-name small{display:block;font-size:.66rem;color:var(--muted);margin-top:.08rem;font-family:'DM Mono',monospace;font-weight:300;}
+  .ex-sets{font-family:'DM Mono',monospace;font-size:.66rem;color:var(--phase1);white-space:nowrap;text-align:right;grid-column:3;grid-row:1;padding-top:2px;}
+  .ex-note{grid-column:2/4;grid-row:2;font-size:.64rem;color:#4a6e3a;font-family:'DM Mono',monospace;padding:.18rem .42rem;background:rgba(200,245,90,.04);border-left:2px solid rgba(200,245,90,.18);margin-top:.28rem;line-height:1.4;}
+
+  /* DONE BANNER */
+  .done-banner{display:none;margin-top:.7rem;padding:.55rem .8rem;background:rgba(200,245,90,.07);border:1px solid rgba(200,245,90,.18);border-radius:3px;font-family:'DM Mono',monospace;font-size:.68rem;color:var(--phase1);text-align:center;letter-spacing:.05em;}
+  .done-banner.show{display:block;}
+
+  /* CRITERIA */
+  .crit-item{display:flex;align-items:flex-start;gap:.6rem;padding:.42rem 0;border-bottom:1px solid var(--border);cursor:pointer;transition:opacity .2s;}
+  .crit-item:last-child{border-bottom:none;}
+  .crit-item.ck{opacity:.45;}
+  .crit-box{width:16px;height:16px;border:1.5px solid #2e2e2e;border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;transition:all .15s;}
+  .crit-box svg{display:none;width:9px;height:9px;}
+  .crit-item.ck .crit-box{background:var(--phase1);border-color:var(--phase1);}
+  .crit-item.ck .crit-box svg{display:block;}
+  .crit-text{font-size:.77rem;}
+  .crit-text small{display:block;font-size:.66rem;color:var(--muted);margin-top:.08rem;}
+
+  /* PRINCIPLES */
+  .principles{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.7rem;margin-top:1.25rem;}
+  .principle-card{padding:.9rem;background:var(--surface2);border:1px solid var(--border);border-radius:3px;}
+  .principle-icon{font-size:1.1rem;margin-bottom:.38rem;}
+  .principle-title{font-family:'Syne',sans-serif;font-size:.78rem;font-weight:700;margin-bottom:.22rem;}
+  .principle-desc{font-size:.71rem;color:#888;line-height:1.5;}
+
+  /* TIMELINE */
+  .tl{display:flex;margin-top:1rem;}
+  .tl-ph{flex:1;padding:.65rem .85rem;border:1px solid var(--border);border-right:none;cursor:pointer;transition:background .2s;}
+  .tl-ph:last-child{border-right:1px solid var(--border);}
+  .tl-ph:hover{background:var(--surface2);}
+  .tl-wk{font-family:'DM Mono',monospace;font-size:.57rem;color:var(--muted);letter-spacing:.09em;text-transform:uppercase;}
+  .tl-nm{font-size:.72rem;font-weight:500;margin-top:.15rem;}
+  .tl-bar{height:3px;margin-top:.42rem;border-radius:2px;background:#1a1a1a;overflow:hidden;}
+  .tl-fill{height:100%;border-radius:2px;width:0;transition:width .5s ease;}
+  .p1 .tl-fill{background:var(--phase1);}
+  .p2 .tl-fill{background:var(--phase2);}
+  .p3 .tl-fill{background:var(--phase3);}
+  .p4 .tl-fill{background:var(--phase4);}
+
+  .prog-sec{margin-top:1.75rem;padding-top:1.25rem;border-top:1px solid var(--border);}
+  .prog-title{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:700;margin-bottom:.45rem;display:flex;align-items:center;gap:.4rem;}
+
+  @media(max-width:600px){
+    .phase-header{grid-template-columns:1fr;}
+    .phase-big-num{display:none;}
+    .tl{flex-direction:column;}
+    .tl-ph{border-right:1px solid var(--border);border-bottom:none;}
+    .tl-ph:last-child{border-bottom:1px solid var(--border);}
+    .stats-bar{gap:1rem;}
+    .reset-btn{margin-left:0;}
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-tag">运动链康复协议 · 2026</div>
+  <h1>从踝到脊柱<span>·</span><br>四阶段系统重建</h1>
+  <div class="header-sub">LEFT KINETIC CHAIN RESTORATION · GYM-BASED · 12–16 WEEKS</div>
+</div>
+
+<div class="stats-bar">
+  <div class="stat-item"><span class="stat-label">已完成</span><span class="stat-value" id="s-done">0</span></div>
+  <div class="stat-item"><span class="stat-label">总项目</span><span class="stat-value" id="s-total">0</span></div>
+  <div class="stat-item"><span class="stat-label">完成率</span><span class="stat-value" id="s-pct">—</span></div>
+  <div class="stat-item"><span class="stat-label">上次训练</span><span class="stat-value" id="s-date" style="font-size:.72rem;color:#888;">—</span></div>
+  <button class="reset-btn" onclick="confirmReset()">↺ 重置记录</button>
+</div>
+
+<div class="warning-banner">
+  ⚠ <strong>使用方法：</strong>展开训练日 → 点击每一行动作打勾 ✓ → 完成后进度条自动更新。弹响≠停止，<strong>锐痛=立即停止</strong>。
+</div>
+
+<div class="phase-nav">
+  <button class="phase-btn active" data-phase="1" onclick="showPhase(1)">P1 · 神经激活</button>
+  <button class="phase-btn" data-phase="2" onclick="showPhase(2)">P2 · 模式重建</button>
+  <button class="phase-btn" data-phase="3" onclick="showPhase(3)">P3 · 力量整合</button>
+  <button class="phase-btn" data-phase="4" onclick="showPhase(4)">P4 · 功能强化</button>
+  <button class="phase-btn" data-phase="5" onclick="showPhase(5)">原则</button>
+</div>
+
+<div class="content">
+
+<!-- ══ P1 ══ -->
+<div class="phase-panel active" id="panel-1">
+  <div class="phase-header">
+    <div class="phase-big-num" style="color:var(--phase1)">01</div>
+    <div>
+      <div class="phase-title">神经唤醒 · 打断代偿程序</div>
+      <div class="phase-meta"><span>📅 Week 1–3</span><span>🏋️ 每周3次</span><span>⏱ 45–55 min</span></div>
+      <div class="phase-goal">目标：重建左踝本体感觉输入 → 打断AMI → 建立左臀大肌正确招募信号。<strong>感知质量比负荷重要100倍</strong>，全程轻重量或无重量。</div>
+    </div>
+  </div>
+  <div class="week-grid">
+
+    <!-- P1-A -->
+    <div class="day-card" id="card-p1a">
+      <div class="day-header" onclick="toggleDay('p1a')">
+        <div class="day-header-left">
+          <div class="day-label">训练 A &nbsp;<span style="font-size:.66rem;color:var(--muted);font-weight:400">Mon / Wed</span></div>
+          <div class="card-prog-row"><div class="card-prog-bar"><div class="card-prog-fill" id="pf-p1a"></div></div><span class="card-prog-txt" id="pt-p1a">0 / 9</span></div>
+        </div>
+        <div class="day-type type-neuro">神经激活</div>
+      </div>
+      <div class="expand-hint" id="eh-p1a">点击展开 ↓</div>
+      <div class="day-body">
+        <div class="sl">Warm-up · 10 min</div>
+        <ul class="ex-list">
+          <li class="ex-item" id="p1a-1" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">踝关节画圈 + 背屈泵<small>坐姿，双脚悬空，重点左侧感受活动范围</small></div><div class="ex-sets">2×20圈</div></li>
+          <li class="ex-item" id="p1a-2" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">90/90 呼吸重置<small>仰卧，双腿搭凳90°，口呼气3秒，完全呼出</small></div><div class="ex-sets">5次×3组</div><div class="ex-note">★ 核心动作：每次训练必做，重置骨盆位置</div></li>
+          <li class="ex-item" id="p1a-3" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">猫牛式（慢速）<small>4秒一个来回，感受腰椎节段性活动</small></div><div class="ex-sets">10次</div></li>
+        </ul>
+        <div class="sl">Block A · 左踝神经重建</div>
+        <ul class="ex-list">
+          <li class="ex-item" id="p1a-4" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">单腿站立 —— 左腿<small>先睁眼稳定，再闭眼，再加微蹲15°</small></div><div class="ex-sets">3×30秒</div><div class="ex-note">扶墙旁站，失衡即扶，不要硬撑</div></li>
+          <li class="ex-item" id="p1a-5" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">弹力带左踝背屈抗阻<small>坐姿，弹力带套足背，缓慢背屈→复位</small></div><div class="ex-sets">3×15次</div><div class="ex-note">感受胫骨前肌主动收缩，不是甩脚</div></li>
+          <li class="ex-item" id="p1a-6" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">Heel-to-toe Rock<small>站立，从足跟→足尖缓慢转移重心，左脚感受地面</small></div><div class="ex-sets">3×10次</div></li>
+        </ul>
+        <div class="sl">Block B · 臀大肌招募重建</div>
+        <ul class="ex-list">
+          <li class="ex-item" id="p1a-7" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">俯卧髋伸展 · 左侧<small>俯卧，左腿伸直抬离地面5cm，膝盖伸直</small></div><div class="ex-sets">3×12次</div><div class="ex-note">★ 关键：先收紧臀部，再抬腿——不是"抬腿"动作</div></li>
+          <li class="ex-item" id="p1a-8" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">侧卧蚌式 · 左侧<small>无弹力带，3秒开，3秒合，感受臀中肌</small></div><div class="ex-sets">3×10次</div></li>
+          <li class="ex-item" id="p1a-9" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">四足位鸟狗 · 左臂+右腿<small>脊柱中立，缓慢伸展，保持3秒</small></div><div class="ex-sets">3×8次</div></li>
+        </ul>
+        <div class="done-banner" id="db-p1a">✓ 训练 A 全部完成！很好。</div>
+      </div>
+    </div>
+
+    <!-- P1-B -->
+    <div class="day-card" id="card-p1b">
+      <div class="day-header" onclick="toggleDay('p1b')">
+        <div class="day-header-left">
+          <div class="day-label">训练 B &nbsp;<span style="font-size:.66rem;color:var(--muted);font-weight:400">Friday</span></div>
+          <div class="card-prog-row"><div class="card-prog-bar"><div class="card-prog-fill" id="pf-p1b"></div></div><span class="card-prog-txt" id="pt-p1b">0 / 9</span></div>
+        </div>
+        <div class="day-type type-rehab">髋关节松动</div>
+      </div>
+      <div class="expand-hint" id="eh-p1b">点击展开 ↓</div>
+      <div class="day-body">
+        <div class="sl">Warm-up · 8 min</div>
+        <ul class="ex-list">
+          <li class="ex-item" id="p1b-1" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">90/90 呼吸重置<small>同训练A，每次训练必做</small></div><div class="ex-sets">5次×2</div></li>
+          <li class="ex-item" id="p1b-2" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">仰卧主动直腿抬高<small>双侧对比左右角度，感受差异</small></div><div class="ex-sets">各10次</div></li>
+        </ul>
+        <div class="sl">Block A · 左髋关节囊松动</div>
+        <ul class="ex-list">
+          <li class="ex-item" id="p1b-3" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">四足位主动髋内旋<small>双手双膝着地，左膝缓慢向内倒，到不适边缘停止</small></div><div class="ex-sets">3×10次</div><div class="ex-note">不要追求幅度，感受关节囊的拉伸感即可</div></li>
+          <li class="ex-item" id="p1b-4" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">90/90 髋关节拉伸<small>坐地，前后腿均90°，上身直立前倾</small></div><div class="ex-sets">各侧60秒×2</div></li>
+          <li class="ex-item" id="p1b-5" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">仰卧"4字"梨状肌拉伸 · 左侧<small>左踝搭右膝，双手抱右大腿拉向胸口</small></div><div class="ex-sets">3×45秒</div></li>
+        </ul>
+        <div class="sl">Block B · 死虫预备</div>
+        <ul class="ex-list">
+          <li class="ex-item" id="p1b-6" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">修正版死虫 · 左腿版<small>仅伸展左腿，右腿固定，右臂对侧伸展</small></div><div class="ex-sets">3×6次</div><div class="ex-note">★ 如有弹响：缩小活动范围，在无弹响区间内练习</div></li>
+          <li class="ex-item" id="p1b-7" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">腹式呼吸激活<small>仰卧，手放腹部，吸气腹部鼓起，呼气收缩</small></div><div class="ex-sets">10次深呼吸</div></li>
+        </ul>
+        <div class="sl">上肢 · 保持整体肌力</div>
+        <ul class="ex-list">
+          <li class="ex-item" id="p1b-8" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">坐姿划船 / 绳索下拉<small>轻重量，感受背部激活，不代偿腰</small></div><div class="ex-sets">3×12</div></li>
+          <li class="ex-item" id="p1b-9" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">哑铃肩推（坐姿）<small>核心稳定，避免腰椎过伸</small></div><div class="ex-sets">3×10</div></li>
+        </ul>
+        <div class="done-banner" id="db-p1b">✓ 训练 B 全部完成！</div>
+      </div>
+    </div>
+
+    <!-- P1-Rest -->
+    <div class="day-card" id="card-p1r">
+      <div class="day-header" onclick="toggleDay('p1r')">
+        <div class="day-header-left">
+          <div class="day-label">休息日 &nbsp;<span style="font-size:.66rem;color:var(--muted);font-weight:400">Tue·Thu·Sat·Sun</span></div>
+          <div class="card-prog-row"><div class="card-prog-bar"><div class="card-prog-fill" id="pf-p1r"></div></div><span class="card-prog-txt" id="pt-p1r">0 / 3</span></div>
+        </div>
+        <div class="day-type type-rest">Active Recovery</div>
+      </div>
+      <div class="expand-hint" id="eh-p1r">点击展开 ↓</div>
+      <div class="day-body">
+        <ul class="ex-list">
+          <li class="ex-item" id="p1r-1" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">步行 20–30 分钟<small>平地，主动感知左脚推蹬——这是神经重建练习</small></div><div class="ex-sets">每天</div></li>
+          <li class="ex-item" id="p1r-2" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">90/90 呼吸（每天早上）<small>起床后5分钟，重置骨盆</small></div><div class="ex-sets">5次×2</div></li>
+          <li class="ex-item" id="p1r-3" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">左踝画圈（任意时间）</div><div class="ex-sets">20圈</div></li>
+        </ul>
+        <div style="margin-top:.7rem;padding:.55rem .7rem;background:rgba(255,107,53,.04);border:1px solid rgba(255,107,53,.14);border-radius:2px;font-family:'DM Mono',monospace;font-size:.63rem;color:#6e3f28;">❌ P1禁止：深蹲 · 硬拉 · 跑步 · 长时间骑车 · 臀桥</div>
+        <div class="done-banner" id="db-p1r">✓ 今日恢复完成！</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1 Criteria -->
+  <div style="padding:.9rem 1rem;background:var(--surface2);border:1px solid var(--border);border-radius:3px;margin-top:.25rem;">
+    <div style="font-family:'Syne',sans-serif;font-size:.82rem;font-weight:700;margin-bottom:.5rem;color:var(--phase1);">进阶标准 · 全部达到后进入 P2</div>
+    <div class="crit-item" onclick="this.classList.toggle('ck')"><div class="crit-box"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="crit-text">左腿单腿站立（闭眼）可稳定保持 20 秒以上<small>不扶任何支撑，仅允许轻微摇晃</small></div></div>
+    <div class="crit-item" onclick="this.classList.toggle('ck')"><div class="crit-box"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="crit-text">俯卧髋伸展可清晰感受臀部收缩（而非大腿后侧）<small>神经招募序列正确的标志</small></div></div>
+    <div class="crit-item" onclick="this.classList.toggle('ck')"><div class="crit-box"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="crit-text">修正版死虫可在较小范围内无弹响完成</div></div>
+  </div>
+</div>
+
+<!-- ══ P2 ══ -->
+<div class="phase-panel" id="panel-2">
+  <div class="phase-header">
+    <div class="phase-big-num" style="color:var(--phase2)">02</div>
+    <div>
+      <div class="phase-title">运动模式重建 · 建立双侧协调</div>
+      <div class="phase-meta"><span>📅 Week 4–7</span><span>🏋️ 每周3–4次</span><span>⏱ 55–65 min</span></div>
+      <div class="phase-goal">目标：在正确神经控制基础上建立左右对称动作模式。引入轻负荷铰链与蹲类动作，优先<strong>单腿变式</strong>消除代偿。</div>
+    </div>
+  </div>
+  <div class="week-grid">
+
+    <div class="day-card" id="card-p2a">
+      <div class="day-header" onclick="toggleDay('p2a')"><div class="day-header-left"><div class="day-label">训练 A · 下肢 / 髋铰链</div><div class="card-prog-row"><div class="card-prog-bar"><div class="card-prog-fill" id="pf-p2a"></div></div><span class="card-prog-txt" id="pt-p2a">0 / 8</span></div></div><div class="day-type type-neuro">髋铰链建立</div></div>
+      <div class="expand-hint" id="eh-p2a">点击展开 ↓</div>
+      <div class="day-body">
+        <div class="sl">Activation · 必做</div>
+        <ul class="ex-list">
+          <li class="ex-item" id="p2a-1" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">90/90 呼吸重置</div><div class="ex-sets">5次×2</div></li>
+          <li class="ex-item" id="p2a-2" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">左腿单腿站立（闭眼）<small>感受当日左踝状态</small></div><div class="ex-sets">2×30秒</div></li>
+        </ul>
+        <div class="sl">Main · 髋铰链序列</div>
+        <ul class="ex-list">
+          <li class="ex-item" id="p2a-3" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">罗马尼亚硬拉 RDL · 轻重量<small>哑铃20–30kg，专注髋折叠感</small></div><div class="ex-sets">4×10</div><div class="ex-note">腰椎中立贯穿全程，不允许圆背</div></li>
+          <li class="ex-item" id="p2a-4" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">单腿 RDL · 左腿支撑<small>哑铃10–15kg，左腿站立，缓慢下降</small></div><div class="ex-sets">3×8（先左后右）</div><div class="ex-note">★ 强制左腿独立完成髋铰链，暴露左右差异</div></li>
+          <li class="ex-item" id="p2a-5" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">保加利亚分腿蹲<small>后脚搭凳，仅用体重，左腿前</small></div><div class="ex-sets">3×8 左腿前</div><div class="ex-note">膝盖追随脚尖方向，左臀感受发力</div></li>
+          <li class="ex-item" id="p2a-6" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">髋推 Hip Thrust<small>肩膀搭凳，轻杠铃30–40kg</small></div><div class="ex-sets">4×10</div><div class="ex-note">顶端停顿1秒，感受臀大肌完全收缩</div></li>
+        </ul>
+        <div class="sl">Accessory</div>
+        <ul class="ex-list">
+          <li class="ex-item" id="p2a-7" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">侧向弓步<small>体重，左右交替，感受内收肌控制</small></div><div class="ex-sets">3×8/侧</div></li>
+          <li class="ex-item" id="p2a-8" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">小腿提踵（单腿）· 左侧<small>2秒上，3秒下，感受腓肠肌</small></div><div class="ex-sets">3×12</div></li>
+        </ul>
+        <div class="done-banner" id="db-p2a">✓ 训练 A 全部完成！</div>
+      </div>
+    </div>
+
+    <div class="day-card" id="card-p2b">
+      <div class="day-header" onclick="toggleDay('p2b')"><div class="day-header-left"><div class="day-label">训练 B · 上肢 + 核心</div><div class="card-prog-row"><div class="card-prog-bar"><div class="card-prog-fill" id="pf-p2b"></div></div><span class="card-prog-txt" id="pt-p2b">0 / 7</span></div></div><div class="day-type type-strength">上肢推拉</div></div>
+      <div class="expand-hint" id="eh-p2b">点击展开 ↓</div>
+      <div class="day-body">
+        <div class="sl">Core First · 脊柱稳定</div>
+        <ul class="ex-list">
+          <li class="ex-item" id="p2b-1" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">完整死虫 Dead Bug<small>双侧对称版，感受腰椎保持中立</small></div><div class="ex-sets">3×8/侧</div><div class="ex-note">如左侧仍有弹响：减小活动范围，在无症状区间操作</div></li>
+          <li class="ex-item" id="p2b-2" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">侧卧支撑 Side Plank<small>双侧30秒，感受臀中肌撑起骨盆</small></div><div class="ex-sets">3×30秒/侧</div></li>
+          <li class="ex-item" id="p2b-3" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">Pallof Press（绳索/弹力带）<small>对抗旋转，感受腹斜肌</small></div><div class="ex-sets">3×10/侧</div></li>
+        </ul>
+        <div class="sl">Upper Push / Pull</div>
+        <ul class="ex-list">
+          <li class="ex-item" id="p2b-4" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">哑铃卧推 / 俯卧撑变式</div><div class="ex-sets">4×10</div></li>
+          <li class="ex-item" id="p2b-5" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">坐姿绳索下拉（宽握）<small>感受肩胛骨下沉内收</small></div><div class="ex-sets">4×10</div></li>
+          <li class="ex-item" id="p2b-6" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">单臂哑铃划船<small>重点感受背部发力，不借腰</small></div><div class="ex-sets">3×12/侧</div></li>
+          <li class="ex-item" id="p2b-7" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">面拉 Face Pull<small>保持肩关节健康，对抗胸椎后凸</small></div><div class="ex-sets">3×15</div></li>
+        </ul>
+        <div class="done-banner" id="db-p2b">✓ 训练 B 全部完成！</div>
+      </div>
+    </div>
+
+    <div class="day-card" id="card-p2c">
+      <div class="day-header" onclick="toggleDay('p2c')"><div class="day-header-left"><div class="day-label">训练 C · 下肢辅助（可选）</div><div class="card-prog-row"><div class="card-prog-bar"><div class="card-prog-fill" id="pf-p2c"></div></div><span class="card-prog-txt" id="pt-p2c">0 / 4</span></div></div><div class="day-type type-rehab">膝主导+臀</div></div>
+      <div class="expand-hint" id="eh-p2c">点击展开 ↓</div>
+      <div class="day-body">
+        <ul class="ex-list">
+          <li class="ex-item" id="p2c-1" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">箱式深蹲<small>坐到箱子再起立，体重或轻杠铃</small></div><div class="ex-sets">4×8</div><div class="ex-note">观察：左膝是否内扣？左脚是否外旋代偿？</div></li>
+          <li class="ex-item" id="p2c-2" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">反向弓步<small>向后踏步，减少前膝压力</small></div><div class="ex-sets">3×10/侧</div></li>
+          <li class="ex-item" id="p2c-3" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">臀大肌髋伸（绳索低滑轮）<small>绳索套踝，站立后踢，感受臀部发力</small></div><div class="ex-sets">3×12 左侧重点</div></li>
+          <li class="ex-item" id="p2c-4" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">北欧腘绳肌离心 Nordic Curl<small>降低版：从45°开始，控制离心下降</small></div><div class="ex-sets">3×5</div></li>
+        </ul>
+        <div class="done-banner" id="db-p2c">✓ 训练 C 全部完成！</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ P3 ══ -->
+<div class="phase-panel" id="panel-3">
+  <div class="phase-header">
+    <div class="phase-big-num" style="color:var(--phase3)">03</div>
+    <div>
+      <div class="phase-title">力量整合 · 负荷递增</div>
+      <div class="phase-meta"><span>📅 Week 8–11</span><span>🏋️ 每周4次</span><span>⏱ 60–70 min</span></div>
+      <div class="phase-goal">目标：在对称运动模式基础上系统增加训练负荷。引入复合大动作，保持<strong>左侧监控优先</strong>。</div>
+    </div>
+  </div>
+  <div class="week-grid">
+
+    <div class="day-card" id="card-p3a">
+      <div class="day-header" onclick="toggleDay('p3a')"><div class="day-header-left"><div class="day-label">训练 A · 腿推</div><div class="card-prog-row"><div class="card-prog-bar"><div class="card-prog-fill" id="pf-p3a"></div></div><span class="card-prog-txt" id="pt-p3a">0 / 5</span></div></div><div class="day-type type-strength">膝主导</div></div>
+      <div class="expand-hint" id="eh-p3a">点击展开 ↓</div>
+      <div class="day-body">
+        <ul class="ex-list">
+          <li class="ex-item" id="p3a-1" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">颈后深蹲 Back Squat<small>5RM的65–75%，优先形态</small></div><div class="ex-sets">4×6</div><div class="ex-note">如左膝代偿明显，先用箱式深蹲替代</div></li>
+          <li class="ex-item" id="p3a-2" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">单腿腿举 · 左腿<small>单腿独立，感受左侧输出</small></div><div class="ex-sets">3×10</div></li>
+          <li class="ex-item" id="p3a-3" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">保加利亚分腿蹲（加重）<small>哑铃15–25kg/手</small></div><div class="ex-sets">4×8/侧</div></li>
+          <li class="ex-item" id="p3a-4" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">腿弯举<small>强化腘绳肌，保护L5/S1</small></div><div class="ex-sets">3×12</div></li>
+          <li class="ex-item" id="p3a-5" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">单腿提踵（左右对比）<small>记录左右侧差异，追踪恢复进度</small></div><div class="ex-sets">3×15/侧</div></li>
+        </ul>
+        <div class="done-banner" id="db-p3a">✓ 训练 A 全部完成！</div>
+      </div>
+    </div>
+
+    <div class="day-card" id="card-p3b">
+      <div class="day-header" onclick="toggleDay('p3b')"><div class="day-header-left"><div class="day-label">训练 B · 铰链</div><div class="card-prog-row"><div class="card-prog-bar"><div class="card-prog-fill" id="pf-p3b"></div></div><span class="card-prog-txt" id="pt-p3b">0 / 4</span></div></div><div class="day-type type-strength">髋主导</div></div>
+      <div class="expand-hint" id="eh-p3b">点击展开 ↓</div>
+      <div class="day-body">
+        <ul class="ex-list">
+          <li class="ex-item" id="p3b-1" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">罗马尼亚硬拉（中高重量）<small>60–80kg，专注髋折叠，腰椎中立</small></div><div class="ex-sets">4×8</div></li>
+          <li class="ex-item" id="p3b-2" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">髋推（加重）<small>80–100kg，顶端停顿，收缩感优先</small></div><div class="ex-sets">4×8</div></li>
+          <li class="ex-item" id="p3b-3" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">单腿 RDL（加哑铃）<small>左腿支撑，20–25kg/手，控制离心3秒</small></div><div class="ex-sets">3×8/侧</div></li>
+          <li class="ex-item" id="p3b-4" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">背伸（45°台）<small>强化竖脊肌，对脊柱侧弯支撑有价值</small></div><div class="ex-sets">3×12</div><div class="ex-note">保持脊柱中立，不要过伸腰椎</div></li>
+        </ul>
+        <div class="done-banner" id="db-p3b">✓ 训练 B 全部完成！</div>
+      </div>
+    </div>
+
+    <div class="day-card" id="card-p3c">
+      <div class="day-header" onclick="toggleDay('p3c')"><div class="day-header-left"><div class="day-label">训练 C · 上肢推</div><div class="card-prog-row"><div class="card-prog-bar"><div class="card-prog-fill" id="pf-p3c"></div></div><span class="card-prog-txt" id="pt-p3c">0 / 5</span></div></div><div class="day-type type-strength">Push</div></div>
+      <div class="expand-hint" id="eh-p3c">点击展开 ↓</div>
+      <div class="day-body">
+        <ul class="ex-list">
+          <li class="ex-item" id="p3c-1" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">杠铃卧推 / 哑铃卧推</div><div class="ex-sets">4×8</div></li>
+          <li class="ex-item" id="p3c-2" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">哑铃上斜推</div><div class="ex-sets">3×10</div></li>
+          <li class="ex-item" id="p3c-3" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">站姿杠铃肩推 OHP<small>核心收紧，不过伸腰</small></div><div class="ex-sets">4×8</div></li>
+          <li class="ex-item" id="p3c-4" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">侧平举</div><div class="ex-sets">3×15</div></li>
+          <li class="ex-item" id="p3c-5" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">Pallof Press（加重）</div><div class="ex-sets">3×10/侧</div></li>
+        </ul>
+        <div class="done-banner" id="db-p3c">✓ 训练 C 全部完成！</div>
+      </div>
+    </div>
+
+    <div class="day-card" id="card-p3d">
+      <div class="day-header" onclick="toggleDay('p3d')"><div class="day-header-left"><div class="day-label">训练 D · 上肢拉</div><div class="card-prog-row"><div class="card-prog-bar"><div class="card-prog-fill" id="pf-p3d"></div></div><span class="card-prog-txt" id="pt-p3d">0 / 5</span></div></div><div class="day-type type-strength">Pull</div></div>
+      <div class="expand-hint" id="eh-p3d">点击展开 ↓</div>
+      <div class="day-body">
+        <ul class="ex-list">
+          <li class="ex-item" id="p3d-1" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">引体向上 / 下拉<small>全程肩胛骨参与</small></div><div class="ex-sets">4×6–8</div></li>
+          <li class="ex-item" id="p3d-2" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">杠铃划船（俯身）<small>腰椎中立，不借力</small></div><div class="ex-sets">4×8</div></li>
+          <li class="ex-item" id="p3d-3" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">单臂哑铃划船</div><div class="ex-sets">3×10/侧</div></li>
+          <li class="ex-item" id="p3d-4" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">面拉 Face Pull<small>每次必做，保持肩袖健康</small></div><div class="ex-sets">3×20</div></li>
+          <li class="ex-item" id="p3d-5" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">二头弯举</div><div class="ex-sets">3×12</div></li>
+        </ul>
+        <div class="done-banner" id="db-p3d">✓ 训练 D 全部完成！</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ P4 ══ -->
+<div class="phase-panel" id="panel-4">
+  <div class="phase-header">
+    <div class="phase-big-num" style="color:var(--phase4)">04</div>
+    <div>
+      <div class="phase-title">功能整合 · 长期维持</div>
+      <div class="phase-meta"><span>📅 Week 12–16+</span><span>🏋️ 每周4次</span><span>⏱ 60–75 min</span></div>
+      <div class="phase-goal">目标：将神经-肌肉对称性整合进完整力量训练体系。保留康复性动作作为<strong>永久预热协议</strong>。</div>
+    </div>
+  </div>
+  <div class="week-grid">
+
+    <div class="day-card" id="card-p4w">
+      <div class="day-header" onclick="toggleDay('p4w')"><div class="day-header-left"><div class="day-label">永久 Warm-up 协议</div><div class="card-prog-row"><div class="card-prog-bar"><div class="card-prog-fill" id="pf-p4w"></div></div><span class="card-prog-txt" id="pt-p4w">0 / 4</span></div></div><div class="day-type type-rehab">每次必做</div></div>
+      <div class="expand-hint" id="eh-p4w">点击展开 ↓</div>
+      <div class="day-body">
+        <div style="font-size:.7rem;color:#666;margin-bottom:.55rem;">无论训练什么，以下8分钟永久保留：</div>
+        <ul class="ex-list">
+          <li class="ex-item" id="p4w-1" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">90/90 呼吸重置</div><div class="ex-sets">5次×2</div></li>
+          <li class="ex-item" id="p4w-2" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">左腿单腿站立（闭眼30秒）</div><div class="ex-sets">2×30秒</div></li>
+          <li class="ex-item" id="p4w-3" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">俯卧左髋伸展（臀激活）</div><div class="ex-sets">2×10</div></li>
+          <li class="ex-item" id="p4w-4" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">动态腿摆 + 髋画圈</div><div class="ex-sets">各10次</div></li>
+        </ul>
+        <div class="ex-note" style="margin-top:.5rem;">这8分钟是你的"系统保养"，终身执行</div>
+        <div class="done-banner" id="db-p4w">✓ Warm-up 完成，开始主训练。</div>
+      </div>
+    </div>
+
+    <div class="day-card" id="card-p4m">
+      <div class="day-header" onclick="toggleDay('p4m')"><div class="day-header-left"><div class="day-label">长期监控指标</div><div class="card-prog-row"><div class="card-prog-bar"><div class="card-prog-fill" id="pf-p4m"></div></div><span class="card-prog-txt" id="pt-p4m">0 / 4</span></div></div><div class="day-type type-full">健康追踪</div></div>
+      <div class="expand-hint" id="eh-p4m">点击展开 ↓</div>
+      <div class="day-body">
+        <ul class="ex-list">
+          <li class="ex-item" id="p4m-1" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">每月：左右腿单腿提踵最大次数对比<small>目标：差距≤3次</small></div><div class="ex-sets">记录</div></li>
+          <li class="ex-item" id="p4m-2" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">每月：单腿RDL负重对比<small>目标：差距≤10%</small></div><div class="ex-sets">记录</div></li>
+          <li class="ex-item" id="p4m-3" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">每季度：死虫动作质量评估<small>左侧弹响是否消失或减少</small></div><div class="ex-sets">评估</div></li>
+          <li class="ex-item" id="p4m-4" onclick="tick(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0a0a0a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="ex-name">每年：脊柱侧弯X光复查<small>监控Cobb角，目标维持在15°以下</small></div><div class="ex-sets">医疗</div></li>
+        </ul>
+        <div class="done-banner" id="db-p4m">✓ 本月监控完成！</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PRINCIPLES ══ -->
+<div class="phase-panel" id="panel-5">
+  <div style="font-family:'Syne',sans-serif;font-size:1.25rem;font-weight:700;margin-bottom:1.25rem;">训练原则 · 注意事项</div>
+  <div class="principles">
+    <div class="principle-card"><div class="principle-icon">🧠</div><div class="principle-title">感知优先于重量</div><div class="principle-desc">P1–P2阶段，正确感受肌肉收缩比负荷重要100倍。宁可用10kg做到精确，不要用50kg做代偿。</div></div>
+    <div class="principle-card"><div class="principle-icon">⚡</div><div class="principle-title">弹响≠停止，疼痛=停止</div><div class="principle-desc">左髋弹响在初期属预期现象。在无痛范围内继续。出现锐痛、腹股沟深部刺痛立即停止。</div></div>
+    <div class="principle-card"><div class="principle-icon">🚫</div><div class="principle-title">P1阶段严格禁止</div><div class="principle-desc">深蹲、硬拉、跑步、长时间骑行、臀桥。这些动作会强化现有代偿模式。</div></div>
+    <div class="principle-card"><div class="principle-icon">🌬️</div><div class="principle-title">90/90呼吸是基石</div><div class="principle-desc">每次训练前必做。重置骨盆位置最有效的非侵入性工具，5分钟改变整个训练质量。</div></div>
+    <div class="principle-card"><div class="principle-icon">📊</div><div class="principle-title">左右不对称是数据</div><div class="principle-desc">记录每次左右侧的感知差异、负重差异、弹响频率。这些数据告诉你恢复进度。</div></div>
+    <div class="principle-card"><div class="principle-icon">🦶</div><div class="principle-title">左踝是根本</div><div class="principle-desc">P1的本体感觉训练不是可选项，是整个系统的基础。跳过P1直接P3只会更快回到原点。</div></div>
+    <div class="principle-card"><div class="principle-icon">🏥</div><div class="principle-title">配合物理治疗</div><div class="principle-desc">课表解决"做什么"，物理治疗师负责距下关节松动术和精确的动作评估。两者互补。</div></div>
+    <div class="principle-card"><div class="principle-icon">⚠️</div><div class="principle-title">L5/S1保护红线</div><div class="principle-desc">所有动作保持腰椎中立。圆背硬拉、过伸腰椎深蹲是绝对禁止的。脊柱有早期退变，不能冒险。</div></div>
+  </div>
+  <div style="margin-top:1.75rem;padding-top:1.25rem;border-top:1px solid var(--border);">
+    <div style="font-family:'Syne',sans-serif;font-size:.92rem;font-weight:700;margin-bottom:.75rem;">进阶时间线</div>
+    <div class="tl">
+      <div class="tl-ph p1" onclick="showPhase(1)"><div class="tl-wk">Week 1–3</div><div class="tl-nm" style="color:var(--phase1)">神经激活</div><div class="tl-bar"><div class="tl-fill"></div></div></div>
+      <div class="tl-ph p2" onclick="showPhase(2)"><div class="tl-wk">Week 4–7</div><div class="tl-nm" style="color:var(--phase2)">模式重建</div><div class="tl-bar"><div class="tl-fill"></div></div></div>
+      <div class="tl-ph p3" onclick="showPhase(3)"><div class="tl-wk">Week 8–11</div><div class="tl-nm" style="color:var(--phase3)">力量整合</div><div class="tl-bar"><div class="tl-fill"></div></div></div>
+      <div class="tl-ph p4" onclick="showPhase(4)"><div class="tl-wk">Week 12+</div><div class="tl-nm" style="color:var(--phase4)">功能强化</div><div class="tl-bar"><div class="tl-fill"></div></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="prog-sec">
+  <div class="prog-title"><span style="color:var(--accent)">●</span> 当前：<span id="cur-phase" style="color:var(--accent)">P1 · 神经激活</span></div>
+  <div style="font-size:.74rem;color:var(--muted);">点击任意动作行打勾 · 全部完成后绿色提示出现 · 刷新页面或点击"重置记录"清空本次</div>
+</div>
+
+</div><!-- /content -->
+
+<script>
+// ─── DATA ───────────────────────────────────────
+const CARDS = {
+  'p1a':['p1a-1','p1a-2','p1a-3','p1a-4','p1a-5','p1a-6','p1a-7','p1a-8','p1a-9'],
+  'p1b':['p1b-1','p1b-2','p1b-3','p1b-4','p1b-5','p1b-6','p1b-7','p1b-8','p1b-9'],
+  'p1r':['p1r-1','p1r-2','p1r-3'],
+  'p2a':['p2a-1','p2a-2','p2a-3','p2a-4','p2a-5','p2a-6','p2a-7','p2a-8'],
+  'p2b':['p2b-1','p2b-2','p2b-3','p2b-4','p2b-5','p2b-6','p2b-7'],
+  'p2c':['p2c-1','p2c-2','p2c-3','p2c-4'],
+  'p3a':['p3a-1','p3a-2','p3a-3','p3a-4','p3a-5'],
+  'p3b':['p3b-1','p3b-2','p3b-3','p3b-4'],
+  'p3c':['p3c-1','p3c-2','p3c-3','p3c-4','p3c-5'],
+  'p3d':['p3d-1','p3d-2','p3d-3','p3d-4','p3d-5'],
+  'p4w':['p4w-1','p4w-2','p4w-3','p4w-4'],
+  'p4m':['p4m-1','p4m-2','p4m-3','p4m-4'],
+};
+
+const LS_KEY = 'rehab_checked_v1';
+const LS_DATE_KEY = 'rehab_last_date_v1';
+const LS_PHASE_KEY = 'rehab_phase_v1';
+
+// ─── STORAGE HELPERS ────────────────────────────
+function saveChecked() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify([...checked])); } catch(e){}
+}
+function loadChecked() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch(e) { return new Set(); }
+}
+function saveDate(d) {
+  try { localStorage.setItem(LS_DATE_KEY, d); } catch(e){}
+}
+function loadDate() {
+  try { return localStorage.getItem(LS_DATE_KEY) || ''; } catch(e){ return ''; }
+}
+function savePhase(n) {
+  try { localStorage.setItem(LS_PHASE_KEY, n); } catch(e){}
+}
+function loadPhase() {
+  try { return parseInt(localStorage.getItem(LS_PHASE_KEY)) || 1; } catch(e){ return 1; }
+}
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+}
+
+// ─── STATE ──────────────────────────────────────
+const checked = loadChecked();
+
+function exToCard(id) {
+  for (const [c,ids] of Object.entries(CARDS)) if (ids.includes(id)) return c;
+  return null;
+}
+
+function refreshCard(cardId) {
+  const ids = CARDS[cardId];
+  const done = ids.filter(id => checked.has(id)).length;
+  const total = ids.length;
+  const pct = total ? (done/total)*100 : 0;
+  const fill = document.getElementById('pf-'+cardId);
+  const txt  = document.getElementById('pt-'+cardId);
+  const banner = document.getElementById('db-'+cardId);
+  if (fill) {
+    fill.style.width = pct+'%';
+    fill.style.background = pct>=100 ? 'var(--phase1)' : pct>=60 ? 'var(--phase2)' : 'var(--accent)';
+  }
+  if (txt) txt.textContent = done+' / '+total;
+  if (banner) banner.classList.toggle('show', done===total);
+}
+
+function refreshGlobal() {
+  let done=0, total=0;
+  for (const ids of Object.values(CARDS)) {
+    total += ids.length;
+    done  += ids.filter(id=>checked.has(id)).length;
+  }
+  document.getElementById('s-done').textContent = done;
+  document.getElementById('s-total').textContent = total;
+  document.getElementById('s-pct').textContent = total ? Math.round(done/total*100)+'%' : '—';
+
+  // show last-saved date
+  const saved = loadDate();
+  const dateEl = document.getElementById('s-date');
+  if (dateEl) dateEl.textContent = saved || '—';
+}
+
+function tick(el) {
+  const id = el.id;
+  if (!id) return;
+  if (checked.has(id)) { checked.delete(id); el.classList.remove('ck'); }
+  else { checked.add(id); el.classList.add('ck'); }
+  const cardId = exToCard(id);
+  if (cardId) refreshCard(cardId);
+  saveChecked();
+  saveDate(todayStr());
+  refreshGlobal();
+}
+
+function toggleDay(cardId) {
+  const card = document.getElementById('card-'+cardId);
+  const hint = document.getElementById('eh-'+cardId);
+  if (!card) return;
+  const open = card.classList.toggle('expanded');
+  if (hint) hint.textContent = open ? '点击收起 ↑' : '点击展开 ↓';
+}
+
+function showPhase(n) {
+  document.querySelectorAll('.phase-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.phase-btn').forEach(b=>b.classList.remove('active'));
+  const panel = document.getElementById('panel-'+n);
+  const btn = document.querySelector('[data-phase="'+n+'"]');
+  if (panel) panel.classList.add('active');
+  if (btn) btn.classList.add('active');
+  const labels = {1:'P1 · 神经激活',2:'P2 · 模式重建',3:'P3 · 力量整合',4:'P4 · 功能强化',5:'原则 · 注意事项'};
+  const el = document.getElementById('cur-phase');
+  if (el && labels[n]) el.textContent = labels[n];
+  savePhase(n);
+}
+
+function confirmReset() {
+  if (!confirm('清空所有打勾记录？（上次训练日期也会清除）')) return;
+  checked.clear();
+  try { localStorage.removeItem(LS_KEY); localStorage.removeItem(LS_DATE_KEY); } catch(e){}
+  document.querySelectorAll('.ex-item').forEach(el=>el.classList.remove('ck'));
+  document.querySelectorAll('.done-banner').forEach(b=>b.classList.remove('show'));
+  Object.keys(CARDS).forEach(refreshCard);
+  refreshGlobal();
+}
+
+// ─── INIT ───────────────────────────────────────
+// restore checked state into DOM
+checked.forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.classList.add('ck');
+});
+
+// restore last phase
+const lastPhase = loadPhase();
+showPhase(lastPhase);
+
+Object.keys(CARDS).forEach(refreshCard);
+refreshGlobal();
+
+// timeline animation
+setTimeout(()=>{
+  document.querySelectorAll('.tl-fill').forEach((bar,i)=>{
+    setTimeout(()=>{bar.style.width='100%';},i*180);
+  });
+},400);
+</script>
+</body>
+</html>
